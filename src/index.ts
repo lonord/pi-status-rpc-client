@@ -1,19 +1,27 @@
-export default function createRPCClient(baseUrl: string) {
+export interface SSEClient {
+	isClosed(): boolean
+	close()
+}
+
+export interface RPCClient {
+	httpGet(path: string, params?: { [x: string]: string | number }): Promise<any>
+	openSSE(path: string, onData: (data: any) => void, params: { [x: string]: string | number }): SSEClient
+}
+
+export default function createRPCClient(baseUrl: string): RPCClient {
 	if (!baseUrl.endsWith('/')) {
 		baseUrl = baseUrl + '/'
 	}
 	return {
 		httpGet: (path: string, params?: { [x: string]: string | number }) => {
 			const query = getQuery(params)
-			return httpGet(`${baseUrl}/${path}${query}`)
+			return httpGet(`${baseUrl}http/${path}${query}`)
 		},
-		openSSE: (path: string, onData: (data: any) => void, onClose: () => void,
-			params: { [x: string]: string | number }) => {
+		openSSE: (path: string, onData: (data: any) => void, params: { [x: string]: string | number }) => {
 			const query = getQuery(params)
-			const fullUrl = `${baseUrl}/${path}${query}`
+			const fullUrl = `${baseUrl}sse/${path}${query}`
 			const sse = new EventSource(fullUrl)
 			sse.addEventListener('data', (event: any) => onData && onData(event.data))
-			sse.addEventListener('error', onClose)
 			return {
 				isClosed: () => sse.readyState === sse.CLOSED,
 				close: () => sse.close()
