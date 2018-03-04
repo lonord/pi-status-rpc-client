@@ -21,7 +21,7 @@ export default function createRPCClient(baseUrl: string): RPCClient {
 			const query = getQuery(params)
 			const fullUrl = `${baseUrl}sse/${path}${query}`
 			const sse = new EventSource(fullUrl)
-			sse.addEventListener('data', (event: any) => onData && onData(event.data))
+			sse.addEventListener('data', (event: any) => onData && onData(JSON.parse(event.data)))
 			return {
 				isClosed: () => sse.readyState === sse.CLOSED,
 				close: () => sse.close()
