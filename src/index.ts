@@ -1,3 +1,5 @@
+import { isNumber } from 'util'
+
 export interface SSEClient {
 	isClosed(): boolean
 	close()
@@ -5,7 +7,9 @@ export interface SSEClient {
 
 export interface RPCClient {
 	httpGet(path: string, params?: { [x: string]: string | number }): Promise<any>
-	openSSE(path: string, onData: (data: any) => void, params: { [x: string]: string | number }): SSEClient
+	openSSE(path: string,
+		onData: (data: any) => void, params: { [x: string]: string | number },
+		retryTimeout?: number): SSEClient
 }
 
 export default function createRPCClient(baseUrl: string): RPCClient {
@@ -17,14 +21,31 @@ export default function createRPCClient(baseUrl: string): RPCClient {
 			const query = getQuery(params)
 			return httpGet(`${baseUrl}http/${path}${query}`)
 		},
-		openSSE: (path: string, onData: (data: any) => void, params: { [x: string]: string | number }) => {
+		openSSE: (path: string,
+			onData: (data: any) => void, params: { [x: string]: string | number },
+			retryTimeout?: number) => {
 			const query = getQuery(params)
 			const fullUrl = `${baseUrl}sse/${path}${query}`
-			const sse = new EventSource(fullUrl)
-			sse.addEventListener('data', (event: any) => onData && onData(JSON.parse(event.data)))
+			const onDataRecv = (event: any) => {
+				dog && dog.feed()
+				onData && onData(JSON.parse(event.data))
+			}
+			let sse = new EventSource(fullUrl)
+			sse.addEventListener('data', onDataRecv)
+			let dog = null
+			if (isNumber(retryTimeout)) {
+				dog = createWatchDog(retryTimeout, () => {
+					sse && sse.close()
+					sse = new EventSource(fullUrl)
+					sse.addEventListener('data', onDataRecv)
+				})
+			}
 			return {
 				isClosed: () => sse.readyState === sse.CLOSED,
-				close: () => sse.close()
+				close: () => {
+					dog && dog.stop()
+					sse.close()
+				}
 			}
 		}
 	}
@@ -61,5 +82,19 @@ function getQuery(params?: { [x: string]: string | number }) {
 		return '?' + query
 	} else {
 		return ''
+	}
+}
+
+function createWatchDog(timeout: number, bark: () => void) {
+	let timer = setTimeout(bark, timeout)
+	return {
+		feed: () => {
+			timer && clearTimeout(timer)
+			timer = setTimeout(bark, timeout)
+		},
+		stop: () => {
+			timer && clearTimeout(timer)
+			timer = null
+		}
 	}
 }
