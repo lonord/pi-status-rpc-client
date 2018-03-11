@@ -52,20 +52,11 @@ export default function createRPCClient(baseUrl: string): RPCClient {
 }
 
 async function httpGet(fullUrl: string) {
-	let data = null
-	let error = null
-	try {
-		const res = await fetch(fullUrl)
-		if (res.ok) {
-			data = await res.json()
-		}
-	} catch (e) {
-		error = e.message || e
+	const res = await fetch(fullUrl)
+	if (res.ok) {
+		return await res.json()
 	}
-	return {
-		error,
-		data
-	}
+	throw new Error(`fetch failed ${res.status} ${res.statusText}`)
 }
 
 function getQuery(params?: { [x: string]: string | number }) {
