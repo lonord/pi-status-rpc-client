@@ -1,6 +1,6 @@
 {
   "name": "@lonord/pi-status-rpc-client",
-  "version": "1.0.9",
+  "version": "1.1.0",
   "description": "Client of pi-status-rpc",
   "main": "lib/",
   "types": "lib/",

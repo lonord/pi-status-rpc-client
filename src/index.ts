@@ -7,6 +7,7 @@ export interface SSEClient {
 
 export interface RPCClient {
 	httpGet(path: string, params?: { [x: string]: string | number }): Promise<any>
+	httpPost(path: string, data: any, params?: { [x: string]: string | number }): Promise<any>
 	openSSE(path: string,
 		onData: (data: any) => void, params: { [x: string]: string | number },
 		retryTimeout?: number): SSEClient
@@ -20,6 +21,10 @@ export default function createRPCClient(baseUrl: string): RPCClient {
 		httpGet: (path: string, params?: { [x: string]: string | number }) => {
 			const query = getQuery(params)
 			return httpGet(`${baseUrl}http/${path}${query}`)
+		},
+		httpPost: (path: string, data: any, params?: { [x: string]: string | number }) => {
+			const query = getQuery(params)
+			return httpPost(`${baseUrl}http/${path}${query}`, data)
 		},
 		openSSE: (path: string,
 			onData: (data: any) => void, params: { [x: string]: string | number },
@@ -53,6 +58,20 @@ export default function createRPCClient(baseUrl: string): RPCClient {
 
 async function httpGet(fullUrl: string) {
 	const res = await fetch(fullUrl)
+	if (res.ok) {
+		return await res.json()
+	}
+	throw new Error(`fetch failed ${res.status} ${res.statusText}`)
+}
+
+async function httpPost(fullUrl: string, data: any) {
+	const res = await fetch(fullUrl, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json'
+		},
+		body: JSON.stringify(data)
+	})
 	if (res.ok) {
 		return await res.json()
 	}
